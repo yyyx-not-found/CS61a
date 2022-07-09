@@ -1,4 +1,4 @@
-# CS61a (UC BerSummer 2020)
+# CS61a (Summer 2020)
 UC Berkeley
 Course code: CS 61A
 Course title: Structure and Interpretation of Computer Programs
