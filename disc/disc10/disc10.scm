@@ -1,6 +1,6 @@
 ;;;3
 
-;;3.1.1
+;;3.1
 (define a (+ 1 2)) ;a
 a ;3
 (define b (+ (* 3 3) (* 4 4))) ;b
@@ -32,14 +32,14 @@ a ;3
 )
 
 ;;;5
-;;5.1.1
+;;5.1
 (define (my-append a b)
     (if (null? (cdr a)) 
         (cons (car a) b)
         (cons (car a) (my-append (cdr a) b))
     )
 )
-;;5.1.2
+;;5.2
 ;begin with 0
 (define (insert element lst index)
     (if (= 0 index)
@@ -47,7 +47,7 @@ a ;3
         (cons (car lst) (insert element (cdr lst) (- index 1)))
     )
 )
-;;5.1.3
+;;5.3
 (define (duplicate lst)
     (if (null? (cdr lst))
         (cons (car lst) (list (car lst)))
