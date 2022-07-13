@@ -1,4 +1,11 @@
-# CS61a (Summer 2020)
+# CS61a (Summer 2020) (Updating)
+
+## Contents
+
+Unofficial solutions for all hws, labs, discs, and projs (.md files contain the solution for interactive question)
+
+## Course Info:
+
 from UC Berkeley
 
 Course code: CS 61A
