@@ -2,16 +2,13 @@
     (cdr (cdr s))
 )
 
-
 (define (cadr s)
     (car (cdr s))
 )
 
-
 (define (caddr s)
     (car (cdr (cdr s)))
 )
-
 
 (define (sign num)
     (cond
@@ -25,7 +22,6 @@
 (define (square x) 
     (* x x)
 )
-
 
 (define (pow x y)
     (cond 
@@ -80,7 +76,6 @@
     )
 )
 
-
 (define (accumulate-tail combiner start n term)
     (define (iter cur res)
         (if (> cur n)
@@ -97,6 +92,7 @@
     ;(map (lambda (x) (if filter-expr map-expr nil)) lst)
     `(lst-filter (map (lambda (,var) (if ,filter-expr ,map-expr nil)) ,lst))
 )
+
 (define (lst-filter lst)
         (if (null? lst)
             nil

@@ -55,6 +55,7 @@ def largest_factor(x):
         if x % i == 0:
             return i
 
+
 def if_function(condition, true_result, false_result):
     """Return true_result if condition is a true value, and
     false_result otherwise.

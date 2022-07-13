@@ -1,7 +1,3 @@
-```
->>>python3 ok -q wwsd_lists -u
-```
-
 ```scheme
 scm> (cons 1 (cons 2 nil))
 (1 2)
