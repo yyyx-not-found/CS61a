@@ -375,11 +375,12 @@ def swap_strategy(score, opponent_score, cutoff=8, num_rolls=6):
 
 def final_strategy(score, opponent_score):
     """Write a brief description of your final strategy.
-
     *** YOUR DESCRIPTION HERE ***
+    Just use swap_strategy directly
+    average_win_rate is 0.677999999
     """
     # BEGIN PROBLEM 12
-    return 6  # Replace this statement
+    return swap_strategy(score, opponent_score, cutoff=12, num_rolls=2)
     # END PROBLEM 12
 
 ##########################
