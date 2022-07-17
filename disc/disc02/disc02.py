@@ -72,5 +72,5 @@ def print_n(n):
         else:
             print(x)
         return print_n(n - 1)
-    return lambda x: inner_print(x)
+    return inner_print
 
