@@ -1,6 +1,3 @@
-from asyncio.windows_events import NULL
-
-
 LAB_SOURCE_FILE = __file__
 
 
