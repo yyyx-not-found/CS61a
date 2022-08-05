@@ -124,7 +124,6 @@ def shifty_shifts(start, goal, limit):
     # END PROBLEM 6
 
 
-# From Svring https://github.com/Svring/CS61A-Summer2020/blob/master/projects/cats/cats.py
 def meowstake_matches(start, goal, limit):
     """A diff function that computes the edit distance from START to GOAL."""
     if limit < 0:
