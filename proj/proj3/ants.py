@@ -560,6 +560,11 @@ class Bee(Insect):
         # Extra credit: Special handling for bee direction
         # BEGIN EC
         "*** YOUR CODE HERE ***"
+        if hasattr(self, 'is_backward') and self.is_backward:
+            if self.place.entrance is not gamestate.beehive:
+                destination = self.place.entrance
+            else:
+                destination = self.place
         # END EC
         if self.blocked():
             self.sting(self.place.ant)
@@ -585,6 +590,10 @@ def make_slow(action, bee):
     """
     # BEGIN Problem EC
     "*** YOUR CODE HERE ***"
+    def slow_action(gamestate):
+        if gamestate.time % 2 == 0:
+            action(gamestate)
+    return slow_action 
     # END Problem EC
 
 def make_scare(action, bee):
@@ -594,12 +603,29 @@ def make_scare(action, bee):
     """
     # BEGIN Problem EC
     "*** YOUR CODE HERE ***"
+    def scare_action(gamestate):
+        bee.is_backward = True
+        action(gamestate)
+        bee.is_backward = False
+    return scare_action
     # END Problem EC
 
 def apply_status(status, bee, length):
     """Apply a status to a BEE that lasts for LENGTH turns."""
     # BEGIN Problem EC
     "*** YOUR CODE HERE ***"
+    origin_action = bee.action
+    status_action = status(bee.action, bee)
+
+    def new_action(gamestate):
+        nonlocal length
+        if length:
+            status_action(gamestate)
+            length -= 1
+        else:
+            origin_action(gamestate)
+
+    bee.action = new_action
     # END Problem EC
 
 
@@ -609,7 +635,7 @@ class SlowThrower(ThrowerAnt):
     name = 'Slow'
     food_cost = 4
     # BEGIN Problem EC
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem EC
 
     def throw_at(self, target):
@@ -623,12 +649,15 @@ class ScaryThrower(ThrowerAnt):
     name = 'Scary'
     food_cost = 6
     # BEGIN Problem EC
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem EC
 
     def throw_at(self, target):
         # BEGIN Problem EC
         "*** YOUR CODE HERE ***"
+        if target and not hasattr(target, 'is_scared'):
+            target.is_scared = True
+            apply_status(make_scare, target, 2)
         # END Problem EC
 
 class LaserAnt(ThrowerAnt):
@@ -637,8 +666,9 @@ class LaserAnt(ThrowerAnt):
     name = 'Laser'
     food_cost = 10
     # OVERRIDE CLASS ATTRIBUTES HERE
+    damage = 2
     # BEGIN Problem OPTIONAL
-    implemented = False   # Change to True to view in the GUI
+    implemented = True   # Change to True to view in the GUI
     # END Problem OPTIONAL
 
     def __init__(self, armor=1):
@@ -647,12 +677,25 @@ class LaserAnt(ThrowerAnt):
 
     def insects_in_front(self, beehive):
         # BEGIN Problem OPTIONAL
-        return {}
+        res = {}
+        _place = self.place
+        distance = 0
+
+        while _place is not beehive:
+            if _place.ant and _place.ant is not self:
+                res.update({_place.ant: distance})
+            if _place.bees:
+                res.update({bee: distance for bee in _place.bees})
+            _place = _place.entrance
+            distance += 1
+        return res
         # END Problem OPTIONAL
 
     def calculate_damage(self, distance):
         # BEGIN Problem OPTIONAL
-        return 0
+        weak = self.insects_shot * 0.05 + distance * 0.2
+        amount = self.damage - weak
+        return max(amount, 0)
         # END Problem OPTIONAL
 
     def action(self, gamestate):
