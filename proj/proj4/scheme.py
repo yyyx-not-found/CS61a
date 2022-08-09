@@ -26,6 +26,7 @@ def scheme_eval(expr, env, _=None): # Optional third argument is ignored
         if isinstance(expr, Pair):
             operator = scheme_eval(expr.first, env)
             validate_procedure(operator)
+
             return scheme_apply(operator, expr.rest, env)
         else:
             return env.get_value(expr)
@@ -50,10 +51,16 @@ class Frame(object):
     def __init__(self, parent):
         """An empty frame with parent frame PARENT (which may be None)."""
         "Your Code Here"
-        if parent:
-            self.environment = parent.environment.copy()
-        else:
-            self.environment = {}
+        self.environment = {}
+        self.parent = parent
+
+        # add special forms
+        self.define('define', Define())
+        self.define('quote', Quote())
+        self.define('quasiquote', Quasiquote())
+        self.define('unquote', Unquote())
+        self.define('begin', Begin())
+        self.define('lambda', Lambda())
 
     def __repr__(self):
         if self.parent is None:
@@ -71,17 +78,12 @@ class Frame(object):
     def get_value(self, symbol):
         if symbol in self.environment:
             return self.environment[symbol]
-        elif symbol == 'define':
-            return Define()
-        elif symbol == 'quote':
-            return Quote()
-        elif symbol == 'quasiquote':
-            return Quasiquote()
-        elif symbol == 'unquote':
-            return Unquote()
         else:
             if isinstance(symbol, numbers.Number) or symbol is nil:
                 return symbol
+            elif self.parent is not None:
+                # find in parent frame
+                return self.parent.get_value(symbol)
             else:
                 raise SchemeError(f'unknown identifier: {symbol}')
     # END PROBLEM 2/3
@@ -145,12 +147,40 @@ class LambdaProcedure(Procedure):
         self.body = body
         self.env = env
 
+        # count the number of formals
+        tmp = self.formals
+        count = 0
+        while tmp is not nil:
+            count += 1
+            tmp = tmp.rest
+        self.formals_num = count
+
     def __str__(self):
         return str(Pair('lambda', Pair(self.formals, self.body)))
 
     def __repr__(self):
         return 'LambdaProcedure({0}, {1}, {2})'.format(
             repr(self.formals), repr(self.body), repr(self.env))
+
+    def apply(self, args, env):
+        def binding(formals, args, binded):
+            if formals is nil:
+                for symbol, value in binded:
+                    self.env.define(symbol, value)
+                return
+
+            binding(formals.rest, args.rest, binded + [(formals.first, scheme_eval(args.first, env))])
+
+        validate_form(args, self.formals_num, self.formals_num)
+        binding(self.formals, args, [])
+
+        # evaluate
+        procedure = self.body
+        while procedure.rest is not nil:
+            scheme_eval(procedure.first, self.env)
+            procedure = procedure.rest
+
+        return scheme_eval(procedure.first, self.env)
 
 
 def add_builtins(frame, funcs_and_names):
@@ -170,15 +200,28 @@ logic for each special form separately somehow, which you can do here.
 """
 class Define(Procedure):
     def apply(self, args, env):
-        validate_form(args, 2, 2)
+        if isinstance(args.first, Pair):
+            # define procedure
+            name = args.first.first
+            if not scheme_symbolp(name):
+                raise SchemeError('non-symbol: {0}'.format(name))
 
-        symbol = args.first
-        if isinstance(symbol, numbers.Number):
-            raise SchemeError(f'non-symbol: {symbol}')
+            formals = args.first.rest
+            body = args.rest
+            lambda_func = Lambda().apply(Pair(formals, body), env)
 
-        value = scheme_eval(args.rest.first, env)
+            # binding
+            env.define(name, lambda_func)
+            return name
+        else:    
+            validate_form(args, 2, 2)
+            symbol = args.first
+            if not scheme_symbolp(symbol):
+                raise SchemeError('non-symbol: {0}'.format(symbol))
 
-        return env.define(symbol, value)
+            value = scheme_eval(args.rest.first, env)
+
+            return env.define(symbol, value)
 
 class Quote(Procedure):
     def apply(self, args, env):
@@ -193,7 +236,7 @@ class Quasiquote(Procedure):
                 if args.first == 'unquote':
                     return Unquote(True).apply(args.rest, env)
                 else:
-                    return Pair(eval_args(args.first), eval_args(args.rest))
+                    return args.map(eval_args)
             else:
                 return args
         
@@ -209,6 +252,26 @@ class Unquote(Procedure):
         else:
             raise SchemeError('unquote outside of quasiquote')
 
+class Begin(Procedure):
+    def apply(self, args, env):
+        validate_form(args, 1)
+        while args.rest is not nil:
+            scheme_eval(args.first, env)
+            args = args.rest
+        return scheme_eval(args.first, env)
+
+
+class Lambda(Procedure):
+    def apply(self, args, env):
+        # validity check
+        validate_form(args, 2)
+        formals = args.first
+        if not isinstance(formals, Pair) and formals is not nil:
+            raise SchemeError('Formals must be a list')
+        validate_formals(formals)    
+        body = args.rest
+
+        return LambdaProcedure(formals, body, Frame(env)) # create a child frame
 
 # Utility methods for checking the structure of Scheme programs
 
