@@ -1,5 +1,6 @@
 """A Scheme interpreter and its read-eval-print loop."""
-from __future__ import print_function  # Python 2 compatibility
+from __future__ import print_function
+from cgi import test  # Python 2 compatibility
 
 import sys
 import os
@@ -28,6 +29,8 @@ def scheme_eval(expr, env, _=None): # Optional third argument is ignored
             validate_procedure(operator)
 
             return scheme_apply(operator, expr.rest, env)
+        elif expr is None:
+            return None
         else:
             return env.get_value(expr)
 
@@ -61,6 +64,12 @@ class Frame(object):
         self.define('unquote', Unquote())
         self.define('begin', Begin())
         self.define('lambda', Lambda())
+        self.define('if', If())
+        self.define('cond', Cond())
+        self.define('and', And())
+        self.define('or', Or())
+        self.define('let', Let())
+        self.define('mu', Mu())
 
     def __repr__(self):
         if self.parent is None:
@@ -271,7 +280,109 @@ class Lambda(Procedure):
         validate_formals(formals)    
         body = args.rest
 
-        return LambdaProcedure(formals, body, Frame(env)) # create a child frame
+        func = LambdaProcedure(formals, body, Frame(env)) # create a child frame
+        return func
+
+class If(Procedure):
+    def apply(self, args, env):
+        validate_form(args, 2, 3)
+        predicate = scheme_eval(args.first, env)
+        consequent = args.rest.first
+        alternative = args.rest.rest.first if args.rest.rest.first is not nil else None
+        if predicate is not False:
+            return scheme_eval(consequent, env)
+        else:
+            return scheme_eval(alternative, env)
+
+class Cond(Procedure):
+    def apply(self, args, env):
+        validate_form(args, 1)
+
+        while args is not nil:
+            test = args.first.first
+            expr = args.first.rest
+
+            # special handle for 'else'
+            if test == 'else':
+                if args.rest is not nil:
+                    raise SchemeError('else must be last')
+                else:
+                    test = True
+            else:
+                test = scheme_eval(test, env)
+
+            if test is not False:
+                if expr is not nil:
+                    procedure = expr
+                    while procedure.rest is not nil:
+                        scheme_eval(procedure.first, env)
+                        procedure = procedure.rest
+
+                    return scheme_eval(procedure.first, env)
+                else:
+                    return test
+
+            args = args.rest
+
+class And(Procedure):
+    def apply(self, args, env):
+        if args is nil:
+            return True
+
+        while args.rest is not nil:
+            expr = args.first
+            if scheme_eval(expr, env) is False:
+                return False
+            args = args.rest
+
+        return scheme_eval(args.first, env)
+
+class Or(Procedure):
+    def apply(self, args, env):
+        if args is nil:
+            return False
+
+        while args.rest is not nil:
+            expr = args.first
+            val = scheme_eval(expr, env)
+            if val is not False:
+                return val
+            args = args.rest
+
+        return scheme_eval(args.first, env)
+
+class Let(Procedure):
+    def apply(self, args, env):
+        validate_form(args, 2)
+        # seperate formals and values
+        formals = Pair(nil, nil)
+        values = Pair(nil, nil)
+
+        tmp = args.first
+        p_formals, p_values = formals, values
+        while tmp is not nil:
+            validate_form(tmp.first, 2, 2)
+            formal = tmp.first.first
+            value = tmp.first.rest.first
+
+            p_formals.first, p_formals.rest = formal, Pair(nil, nil) if tmp.rest is not nil else nil
+            p_values.first, p_values.rest = value, Pair(nil, nil) if tmp.rest is not nil else nil
+            p_formals, p_values = p_formals.rest, p_values.rest
+
+            tmp = tmp.rest
+
+        body = args.rest
+
+        func = Lambda().apply(Pair(formals, body), env)
+        return func.apply(values, env)
+
+class Mu(Procedure):
+    def apply(self, args, env):
+        validate_form(args, 2)
+        formals = args.first
+        body = args.rest
+        return MuProcedure(formals, body)
+        
 
 # Utility methods for checking the structure of Scheme programs
 
@@ -349,6 +460,9 @@ class MuProcedure(Procedure):
         return 'MuProcedure({0}, {1})'.format(
             repr(self.formals), repr(self.body))
 
+    def apply(self, args, env):
+        func = Lambda().apply(Pair(self.formals, self.body), env)
+        return func.apply(args, env)
 
 ##################
 # Tail Recursion #

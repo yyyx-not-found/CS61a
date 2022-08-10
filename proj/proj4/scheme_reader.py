@@ -170,6 +170,8 @@ def read_tail(src):
         
         if text == ')':
             return nil
+        elif text == 'nil':
+            return Pair(nil, read_tail(src))
         elif text == '(':
             return Pair(read_tail(src), read_tail(src))
         elif text in quotes:
