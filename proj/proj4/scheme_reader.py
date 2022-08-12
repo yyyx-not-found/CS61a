@@ -15,9 +15,10 @@ The __str__ method of a Scheme value will return a Scheme expression that
 would be read to the value, where possible.
 """
 
-from __future__ import print_function # Python 2 compatibility
+from __future__ import print_function  # Python 2 compatibility
 
 import numbers
+import builtins
 
 from ucb import main, trace, interact
 from scheme_tokens import tokenize_lines, DELIMITERS
@@ -38,7 +39,8 @@ class Pair(object):
     """
     def __init__(self, first, rest):
         from scheme_builtins import scheme_valid_cdrp, SchemeError
-        if not scheme_valid_cdrp(rest):
+        if not (rest is nil or isinstance(rest, Pair) or type(rest).__name__ == 'Promise'):
+            print(rest, type(rest).__name__)
             raise SchemeError("cdr can only be a pair, nil, or a promise but was {}".format(rest))
         self.first = first
         self.rest = rest
@@ -78,6 +80,16 @@ class Pair(object):
         else:
             raise TypeError('ill-formed list (cdr is a promise)')
 
+    def flatmap(self, fn):
+        """Return a Scheme list after flatmapping Python function FN to SELF."""
+        from scheme_builtins import scheme_append
+        mapped = fn(self.first)
+        if self.rest is nil or isinstance(self.rest, Pair):
+            return scheme_append(mapped, self.rest.flatmap(fn))
+        else:
+            raise TypeError('ill-formed list (cdr is a promise)')
+
+
 class nil(object):
     """The empty list"""
 
@@ -91,6 +103,9 @@ class nil(object):
         return 0
 
     def map(self, fn):
+        return self
+
+    def flatmap(self, fn):
         return self
 
 nil = nil() # Assignment hides the nil class; there is only one instance
@@ -116,32 +131,26 @@ def scheme_read(src):
     """
     if src.current() is None:
         raise EOFError
-    # BEGIN PROBLEM 1/2
-    "*** YOUR CODE HERE ***"
-    def quote(symbol, _next):
-        if _next == '(':
-            return Pair(symbol, Pair(read_tail(src), nil))
-        elif _next == ')':
-            raise SyntaxError('unexpected token: \')\'')
-        elif _next in quotes:
-            return Pair(symbol, Pair(quote(quotes[_next], src.pop_first()), nil))
-        else:
-            return Pair(symbol, Pair(_next, nil))
-
-    text = src.pop_first()
-    if text == '(':
-        return read_tail(src)
-    elif text == 'nil':
+    val = src.pop_first() # Get the first token
+    if val == 'nil':
+        # BEGIN PROBLEM 1
+        "*** YOUR CODE HERE ***"
         return nil
-    elif text == ')':
-        raise SyntaxError('unexpected token: \')\'')
-    elif text in quotes:
-        return quote(quotes[text], src.pop_first())
+        # END PROBLEM 1
+    elif val == '(':
+        # BEGIN PROBLEM 1
+        "*** YOUR CODE HERE ***"
+        return read_tail(src)
+        # END PROBLEM 1
+    elif val in quotes:
+        # BEGIN PROBLEM 6
+        "*** YOUR CODE HERE ***"
+        return Pair(quotes[val], Pair(scheme_read(src), nil))
+        # END PROBLEM 6
+    elif val not in DELIMITERS:
+        return val
     else:
-        return text
-
-    # END PROBLEM 1/2
-
+        raise SyntaxError('unexpected token: {0}'.format(val))
 def read_tail(src):
     """Return the remainder of a list in SRC, starting before an element or ).
 
@@ -153,33 +162,17 @@ def read_tail(src):
     try:
         if src.current() is None:
             raise SyntaxError('unexpected end of file')
-        # BEGIN PROBLEM 1
-        "*** YOUR CODE HERE ***"
-        def quote(symbol, _next):
-            if _next == '(':
-                return Pair(Pair(quotes[text], Pair(read_tail(src), nil)), read_tail(src))
-            elif _next == ')':
-                raise SyntaxError('unexpected token: \')\'')
-            elif _next in quotes:
-                return Pair(Pair(symbol, quote(quotes[_next], src.pop_first())), nil)
-            else:
-                return Pair(Pair(quotes[text], Pair(_next, nil)), read_tail(src))
-
-
-        text = src.pop_first()
-        
-        if text == ')':
+        elif src.current() == ')':
+            # BEGIN PROBLEM 1
+            "*** YOUR CODE HERE ***"
+            src.pop_first()
             return nil
-        elif text == 'nil':
-            return Pair(nil, read_tail(src))
-        elif text == '(':
-            return Pair(read_tail(src), read_tail(src))
-        elif text in quotes:
-            return quote(quotes[text], src.pop_first())
+            # END PROBLEM 1
         else:
-            return Pair(text, read_tail(src))
-            
-        # END PROBLEM 1
+            # BEGIN PROBLEM 1
+            "*** YOUR CODE HERE ***"
+            return Pair(scheme_read(src), read_tail(src))
+            # END PROBLEM 1
     except EOFError:
         raise SyntaxError('unexpected end of file')
 
@@ -199,7 +192,11 @@ def buffer_lines(lines, prompt='scm> ', show_prompt=False):
 
 def read_line(line):
     """Read a single string LINE as a Scheme expression."""
-    return scheme_read(Buffer(tokenize_lines([line])))
+    buf = Buffer(tokenize_lines([line]))
+    result = scheme_read(buf)
+    if buf.more_on_line:
+        raise SyntaxError("read_line's argument can only be a single element, but received multiple")
+    return result
 
 def repl_str(val):
     """Should largely match str(val), except for booleans and undefined."""
@@ -221,6 +218,9 @@ def read_print_loop():
             src = buffer_input('read> ')
             while src.more_on_line:
                 expression = scheme_read(src)
+                if expression == 'exit':
+                    print()
+                    return
                 print('str :', expression)
                 print('repr:', repr(expression))
         except (SyntaxError, ValueError) as err:
