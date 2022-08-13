@@ -38,9 +38,12 @@ def scheme_eval(expr, env, _=None): # Optional third argument is ignored
         "*** YOUR CODE HERE ***"
         procedure = scheme_eval(expr.first, env)
         validate_procedure(procedure)
-        args = expr.rest.map(lambda expr: scheme_eval(expr, env))
 
-        return scheme_apply(procedure, args, env)
+        if isinstance(procedure, MacroProcedure):
+            return scheme_eval(procedure.apply_macro(rest, env), env)
+        else:
+            args = expr.rest.map(lambda expr: scheme_eval(expr, env))
+            return scheme_apply(procedure, args, env)
         # END PROBLEM 4
 
 def self_evaluating(expr):
@@ -80,7 +83,7 @@ def eval_all(expressions, env):
         scheme_eval(expressions.first, env)
         expressions = expressions.rest
 
-    return scheme_eval(expressions.first, env)
+    return scheme_eval(expressions.first, env, True)
     # END PROBLEM 7
 
 ################
@@ -345,9 +348,9 @@ def do_if_form(expressions, env):
     """
     validate_form(expressions, 2, 3)
     if is_true_primitive(scheme_eval(expressions.first, env)):
-        return scheme_eval(expressions.rest.first, env)
+        return scheme_eval(expressions.rest.first, env, True)
     elif len(expressions) == 3:
-        return scheme_eval(expressions.rest.rest.first, env)
+        return scheme_eval(expressions.rest.rest.first, env, True)
 
 def do_and_form(expressions, env):
     """Evaluate a (short-circuited) and form.
@@ -366,6 +369,9 @@ def do_and_form(expressions, env):
     "*** YOUR CODE HERE ***"
     res = True
     while expressions is not nil:
+        if expressions.rest is nil:
+            return scheme_eval(expressions.first, env, True)
+
         res = scheme_eval(expressions.first, env)
         if is_false_primitive(res):
             break
@@ -391,6 +397,9 @@ def do_or_form(expressions, env):
     "*** YOUR CODE HERE ***"
     res = False
     while expressions is not nil:
+        if expressions.rest is nil:
+            return scheme_eval(expressions.first, env, True)
+
         res = scheme_eval(expressions.first, env)
         if is_true_primitive(res):
             break
@@ -469,6 +478,19 @@ def do_define_macro(expressions, env):
     """
     # BEGIN Problem 20
     "*** YOUR CODE HERE ***"
+    validate_form(expressions, 2, 2)
+    if not scheme_listp(expressions.first):
+        raise SchemeError('improper form for define-macro')
+
+    name = expressions.first.first
+    if not scheme_symbolp(name):
+        raise SchemeError('improper form for define-macro')
+    formals = expressions.first.rest
+    validate_formals(formals)
+    
+    macro = MacroProcedure(formals, expressions.rest, env)
+    env.define(name, macro)
+    return name
     # END Problem 20
 
 
@@ -671,6 +693,9 @@ def optimize_tail_calls(prior_eval_function):
         result = Thunk(expr, env)
         # BEGIN
         "*** YOUR CODE HERE ***"
+        while isinstance(result, Thunk):
+            result = prior_eval_function(result.expr, result.env)
+        return result
         # END
     return optimized_eval
 
@@ -682,7 +707,7 @@ def optimize_tail_calls(prior_eval_function):
 ################################################################
 # Uncomment the following line to apply tail call optimization #
 ################################################################
-# scheme_eval = optimize_tail_calls(scheme_eval)
+scheme_eval = optimize_tail_calls(scheme_eval)
 
 
 
