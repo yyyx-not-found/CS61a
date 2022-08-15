@@ -1,4 +1,4 @@
-# CS61a (Summer 2020) (Updating)
+# CS61a (Summer 2020) (Finished)
 
 ## Contents
 
